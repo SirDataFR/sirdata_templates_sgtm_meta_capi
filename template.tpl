@@ -1130,7 +1130,7 @@ ___SERVER_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://www.facebook.com/tr/"
+                "string": "https://www.facebook.com/"
               }
             ]
           }
