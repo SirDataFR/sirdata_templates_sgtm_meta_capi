@@ -13,7 +13,7 @@ ___INFO___
   "id": "sirdata_templates_sgtm_meta_capi",
   "version": 1,
   "securityGroups": [],
-  "displayName": "Meta/Facebook CAPI (GDPR Ready Conversion API)",
+  "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
     "ADVERTISING",
     "ATTRIBUTION",
