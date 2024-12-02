@@ -617,7 +617,7 @@ let eventValue = eventData.value || 0;
 event.custom_data.order_id = eventData.transaction_id;
 event.custom_data.search_string = eventData.search_term;
 if (event.event_name === 'InitiateCheckout') {
-  event.custom_data.num_items = eventData.items.length || 0;
+  event.custom_data.num_items = eventData.items ? eventData.items.length : 0;
 }
 if (eventData.items && eventData.items.length > 0) {
   event.custom_data.content_type = 'product';
