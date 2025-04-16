@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.1,
+  "version": 1.2,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -190,6 +190,24 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "CHECKBOX",
+    "name": "forwardUserData",
+    "checkboxText": "Automatically forward user_data to Meta (e.g. hashed name, hashed email etc.)",
+    "simpleValueType": true,
+    "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
+    "defaultValue": true,
+    "alwaysInSummary": true
+  },
+  {
+    "type": "CHECKBOX",
+    "name": "forwardIdentifiers",
+    "checkboxText": "Automatically forward identification data to Meta (e.g. user_id, IP address, localisation, user-agent etc.) for higher Event Match Quality",
+    "simpleValueType": true,
+    "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/integration-quality-api//\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
+    "defaultValue": true,
+    "alwaysInSummary": true
+  },
+  {
+    "type": "CHECKBOX",
     "name": "sendPixelFromBrowser",
     "checkboxText": "Send pixel request if consent is given",
     "simpleValueType": true,
@@ -251,12 +269,12 @@ ___TEMPLATE_PARAMETERS___
                 "displayValue": "Event Time"
               },
               {
-                "value": "event_source_url",
-                "displayValue": "Source URL"
-              },
-              {
                 "value": "opt_out",
                 "displayValue": "Opt Out"
+              },
+              {
+                "value": "event_source_url",
+                "displayValue": "Source URL"
               }
             ]
           },
@@ -295,32 +313,12 @@ ___TEMPLATE_PARAMETERS___
             "type": "SELECT",
             "selectItems": [
               {
-                "value": "fbc",
-                "displayValue": "Click ID"
-              },
-              {
-                "value": "fb_login_id",
-                "displayValue": "FB Login ID"
-              },
-              {
                 "value": "fbp",
                 "displayValue": "Browser ID"
               },
               {
-                "value": "fn",
-                "displayValue": "First Name"
-              },
-              {
-                "value": "ge",
-                "displayValue": "Gender"
-              },
-              {
-                "value": "db",
-                "displayValue": "Date of Birth"
-              },
-              {
-                "value": "email",
-                "displayValue": "Email"
+                "value": "ct",
+                "displayValue": "City"
               },
               {
                 "value": "client_ip_address",
@@ -331,16 +329,48 @@ ___TEMPLATE_PARAMETERS___
                 "displayValue": "Client user agent"
               },
               {
+                "value": "fbc",
+                "displayValue": "Click ID"
+              },
+              {
                 "value": "country",
                 "displayValue": "Country"
               },
               {
-                "value": "lead_id",
-                "displayValue": "Lead ID"
+                "value": "db",
+                "displayValue": "Date of Birth"
+              },
+              {
+                "value": "email",
+                "displayValue": "Email"
+              },
+              {
+                "value": "em",
+                "displayValue": "Email (sha-256)"
+              },
+              {
+                "value": "external_id",
+                "displayValue": "External ID"
+              },
+              {
+                "value": "fb_login_id",
+                "displayValue": "FB Login ID"
+              },
+              {
+                "value": "fn",
+                "displayValue": "First Name"
+              },
+              {
+                "value": "ge",
+                "displayValue": "Gender"
               },
               {
                 "value": "ln",
                 "displayValue": "Last Name"
+              },
+              {
+                "value": "lead_id",
+                "displayValue": "Lead ID"
               },
               {
                 "value": "ph",
@@ -353,10 +383,6 @@ ___TEMPLATE_PARAMETERS___
               {
                 "value": "subscription_id",
                 "displayValue": "Subscription ID"
-              },
-              {
-                "value": "ct",
-                "displayValue": "City"
               },
               {
                 "value": "zp",
@@ -437,15 +463,14 @@ const sha256Sync = require('sha256Sync');
 
 const eventData = getAllEventData();
 const gcsParam = getRequestQueryParameter('gcs') || eventData['x-ga-gcs'];
-const consentGranted = (getRequestHeader('Gtm-Helper-Consent-Basic-Ads') == 'true' || (gcsParam && gcsParam[2]=='1')|| (getRequestHeader('Gtm-Helper-Gdpr-Applies') == 'false' && !gcsParam)) ? true : false;
+const consentGranted = (getRequestHeader('gtm-helper-consent-personalized-ads') == 'true' || (gcsParam && gcsParam[2]=='1')|| (getRequestHeader('gtm-helper-gdpr-applies') == 'false' && !gcsParam)) ? true : false;
 if (!data.pixelId || !data.accessToken || (!data.sendWithoutConsent && !consentGranted)) {
   data.gtmOnSuccess();
   return;
 }
 
-const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.0';
+const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.1';
 const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
-const userActualIp = getRequestHeader('Gtm-Helper-User-Ip') || eventData.ip_override;
 
 const GA4_MAPPINGS = {
   'add_payment_info': 'AddPaymentInfo',
@@ -541,8 +566,9 @@ function setValidUUID(uuid) {
   return undefined;
 }
 
-const url = eventData.page_location || getRequestHeader('referer') || getRequestHeader('Gtm-Helper-Site-Origin');
-const originDomain = getRequestHeader('Gtm-Helper-Site-Domain') || computeEffectiveTldPlusOne(url);
+const url = eventData.page_location || getRequestHeader('referer') || getRequestHeader('gtm-helper-site-origin');
+const referrer = eventData.page_referrer;
+const originDomain = getRequestHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
 let fbp = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
@@ -551,6 +577,11 @@ if (url) {
   const urlParsed = parseUrl(url);
   if (urlParsed && urlParsed.searchParams.fbclid) {
     fbc = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
+  } else {
+    const referrerParsed = parseUrl(referrer);
+    if (referrerParsed && referrerParsed.searchParams.fbclid) {
+      fbc = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + decodeUriComponent(referrerParsed.searchParams.fbclid);
+    }
   }
 }
 
@@ -587,34 +618,43 @@ event.event_id = eventData.event_id || 'sirdata_sgtm.' + getTimestampMillis() + 
 event.event_name = getEventName(eventData.event_name, data);
 event.event_source_url = url;
 event.event_time = eventData.event_time || Math.round(getTimestampMillis() / 1000);
-event.referrer_url = eventData.page_referrer;
-
-event.user_data.client_ip_address = userActualIp;
-event.user_data.client_user_agent = eventData.user_agent;
-event.user_data.external_id = eventData.user_id || setValidUUID(getRequestHeader('Gtm-Helper-Cookieless-Id-Domain-Specific'));
+event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
 event.user_data.fbp = fbp;
-event.user_data.lead_id = eventData.lead_id;
-event.user_data.subscription_id = eventData.subscription_id;
 
-if (eventData.user_data) {
+if (data.forwardIdentifiers) {
+  // consent for stored User Ids or user-agent or ids
+  if (consentGranted) {
+    event.user_data.external_id = eventData.user_id || setValidUUID(getRequestHeader('gtm-helper-cookieless-id-domain-specific'));
+    event.user_data.client_user_agent = getRequestHeader('gtm-helper-device-user-agent') || eventData.user_agent;
+    event.user_data.lead_id = eventData.lead_id;
+    event.user_data.subscription_id = eventData.subscription_id;
+  }
+  event.user_data.client_ip_address = getRequestHeader('gtm-helper-user-ip') || eventData.ip_override;
+  event.user_data.country = getRequestHeader('gtm-helper-user-country');
+  event.user_data.ct = getRequestHeader('gtm-helper-user-city');
+}
+
+if (consentGranted && data.forwardUserData && eventData.user_data) {
   event.user_data.em = eventData.user_data.sha256_email_address || eventData.user_data.email_address || eventData.user_data.email;
   event.user_data.ge = eventData.user_data.gender;
   event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
   if (eventData.user_data.address && eventData.user_data.address[0]) {
     event.user_data.country = eventData.user_data.address[0].country;
-  event.user_data.ct = eventData.user_data.address[0].city;
-  event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
-  event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
-  event.user_data.st = eventData.user_data.address[0].region;
-  event.user_data.zp = eventData.user_data.address[0].postal_code;
+    event.user_data.ct = eventData.user_data.address[0].city;
+    event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
+    event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
+    event.user_data.st = eventData.user_data.address[0].region;
+    event.user_data.zp = eventData.user_data.address[0].postal_code;
   }
 }
 
 let eventCurrency = eventData.currency || '';
 let eventValue = eventData.value || 0;
-event.custom_data.order_id = eventData.transaction_id;
+if (consentGranted) {
+  event.custom_data.order_id = eventData.transaction_id;
+}
 event.custom_data.search_string = eventData.search_term;
 if (event.event_name === 'InitiateCheckout') {
   event.custom_data.num_items = eventData.items ? eventData.items.length : 0;
@@ -656,7 +696,10 @@ if (eventCurrency) {
 if (eventValue) {
   event.custom_data.value = eventValue;
 }
-
+//patch if clear email and no hashed email
+if (data.userData.email && !data.userData.em) {
+  data.userData.em = data.userData.email;
+}
 event = cleanValues(override(event, data.serverEvent), false);
 event.custom_data = cleanValues(override(event.custom_data, data.customData), false);
 event.user_data = cleanValues(override(event.user_data, data.userData), true);
@@ -940,7 +983,7 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-Consent-Basic-Ads"
+                    "string": "gtm-helper-consent-personalized-ads"
                   }
                 ]
               },
@@ -955,7 +998,7 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-User-Ip"
+                    "string": "gtm-helper-user-country"
                   }
                 ]
               },
@@ -970,7 +1013,7 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-Site-Origin"
+                    "string": "gtm-helper-user-city"
                   }
                 ]
               },
@@ -985,7 +1028,7 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-Site-Domain"
+                    "string": "gtm-helper-device-user-agent"
                   }
                 ]
               },
@@ -1000,7 +1043,7 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-Gdpr-Applies"
+                    "string": "gtm-helper-user-ip"
                   }
                 ]
               },
@@ -1015,7 +1058,52 @@ ___SERVER_PERMISSIONS___
                 "mapValue": [
                   {
                     "type": 1,
-                    "string": "Gtm-Helper-Cookieless-Id-Domain-Specific"
+                    "string": "gtm-helper-site-origin"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-site-domain"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-gdpr-applies"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-cookieless-id-domain-specific"
                   }
                 ]
               },
@@ -1165,5 +1253,3 @@ setup: ''
 ___NOTES___
 
 Created on 21/11/2022, 20:30:02
-
-
