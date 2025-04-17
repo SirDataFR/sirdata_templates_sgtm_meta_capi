@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.2,
+  "version": 1.3,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -697,7 +697,7 @@ if (eventValue) {
   event.custom_data.value = eventValue;
 }
 //patch if clear email and no hashed email
-if (data.userData.email && !data.userData.em) {
+if (data.userData && data.userData.email && !data.userData.em) {
   data.userData.em = data.userData.email;
 }
 event = cleanValues(override(event, data.serverEvent), false);
