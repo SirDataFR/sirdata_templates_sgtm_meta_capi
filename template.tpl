@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.3,
+  "version": 1.4,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -726,9 +726,10 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
       const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
       for (let i = 0; i < userParams.length; i++) {
           if (userParams[i] && event.user_data[userParams[i]]) {
-              url += '&cd[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
+              url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
           }
       }
+      url += '&ud[client_ip_address]=' + encodeUriComponent(event.user_data.client_ip_address);
       const customParams = ['content_category', 'content_type', 'content_name', 'contents', 'currency', 'search_string', 'value'];
       for (let i = 0; i < customParams.length; i++) {
           if (customParams[i] && event.custom_data[customParams[i]]) {
