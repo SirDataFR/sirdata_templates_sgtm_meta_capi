@@ -760,7 +760,6 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         }
         if (data.sendPixelFromBrowser) {
           sendPixelFromBrowser(url);
-          data.gtmOnSuccess(); //send success here
         }
         if (data.sendPixelFromServer) {
           if (event.user_data.client_ip_address) {
@@ -771,7 +770,6 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
               method: 'GET'
           }, "");
         }
-        return;
       }
     }
     data.gtmOnSuccess();
@@ -1015,6 +1013,21 @@ ___SERVER_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "gtm-helper-consent-personalized-ads"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-user-hashed-email"
                   }
                 ]
               },
