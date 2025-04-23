@@ -15,5 +15,5 @@
 homepage: "https://sgtm.sirdata.io"
 documentation: "https://server-side.docs.sirdata.net/sirdata-server-side/v/english-1/installation/facebook-conversions-api-setup"
 versions:
-  - sha: 500785d5dcf19bb4207120ee5f2ae45eda852163
-    changeNotes: fix empty data.userData issue 
+  - sha: d5bd5e7959e6e8f9747fe4508c6c4a0a658853d6
+    changeNotes: new experimental features
