@@ -773,8 +773,8 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         }
         return;
       }
-      data.gtmOnSuccess();
     }
+    data.gtmOnSuccess();
   } else {
     data.gtmOnFailure();
   }
