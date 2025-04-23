@@ -182,7 +182,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "CHECKBOX",
     "name": "generateFbpCookie",
-    "checkboxText": "Generate \"_fbp\" and \"_fbc\" cookies if consent is given.",
+    "checkboxText": "Generate \"_fbp\" and \"_fbc\" cookies when consent is given.",
     "simpleValueType": true,
     "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
     "defaultValue": true,
@@ -191,16 +191,16 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "CHECKBOX",
     "name": "forwardUserData",
-    "checkboxText": "Automatically forward user_data to Meta (e.g. hashed name, hashed email etc.)",
+    "checkboxText": "Boost Event Match Quality by automatically sending hashed user data to Meta — like email, name, and more.",
     "simpleValueType": true,
-    "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
+    "help": "Automatically GA4 user_data and the \"Gtm-Helper-User-Hashed-Email\" header proposed by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e if you subscribed to it. For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
     "defaultValue": true,
     "alwaysInSummary": true
   },
   {
     "type": "CHECKBOX",
     "name": "forwardIdentifiers",
-    "checkboxText": "Automatically forward identification data to Meta (e.g. user_id, IP address, localisation, user-agent etc.) for higher Event Match Quality",
+    "checkboxText": "Boost Event Match Quality by automatically sending key identifiers to Meta — like IP, user ID, and location.",
     "simpleValueType": true,
     "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/integration-quality-api//\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
     "defaultValue": true,
@@ -209,7 +209,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "CHECKBOX",
     "name": "sendPixelFromBrowser",
-    "checkboxText": "Send pixel request if consent is given",
+    "checkboxText": "Send pixel request to browser when consent is given.",
     "simpleValueType": true,
     "help": "Send a pixel request back to the browser if consent is given. Don\u0027t forget to remove the Facebook SDK if you activate this option.",
     "defaultValue": true,
@@ -217,10 +217,19 @@ ___TEMPLATE_PARAMETERS___
   },
   {
     "type": "CHECKBOX",
-    "name": "sendWithoutConsent",
-    "checkboxText": "Send data without consent using a random fbp ID or cookieless user ID",
+    "name": "sendPixelFromServer",
+    "checkboxText": "Experimental: try sending pixel from server when consent is given but pixels are adblocked",
     "simpleValueType": true,
-    "help": "To use the cookieless user ID, the client must subscribe to the \"site-only cookieless user ID\" option offered by \u003ca href\u003d\"https://sgtm.sirdata.io\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e, which doesn\u0027t allow tracking accross websites.",
+    "help": "Automatically leverage the \"Gtm-Helper-User-Has-Adblocker\" header proposed by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e if you subscribed to it.",
+    "defaultValue": false,
+    "alwaysInSummary": true
+  },
+  {
+    "type": "CHECKBOX",
+    "name": "sendWithoutConsent",
+    "checkboxText": "Experimental: send data without consent using a random fbp ID or cookieless user ID",
+    "simpleValueType": true,
+    "help": "To use the cookieless user ID, the client must subscribe to the \"site-only cookieless user ID\" option offered by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e, which doesn\u0027t allow tracking accross websites.",
     "alwaysInSummary": true
   },
   {
@@ -469,6 +478,11 @@ if (!data.pixelId || !data.accessToken || (!data.sendWithoutConsent && !consentG
   return;
 }
 
+const isAdblocked = getRequestHeader('gtm-helper-user-has-adblocker');
+if (data.sendPixelFromServer && isAdblocked == 'false') {
+    data.sendPixelFromServer = false;
+}
+
 const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.1';
 const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
 
@@ -595,23 +609,9 @@ if (consentGranted) {
   if (fbcFromCookie && !fbc) {
     fbc = fbcFromCookie;
   }
-
-  if (data.generateFbpCookie) {
-    const cookieOptions = {
-        domain: '.' + originDomain,
-        path: '/',
-        samesite: 'Lax',
-        secure: true,
-        'max-age': 31536000,
-        HttpOnly: false
-    };
-    setCookie('_fbp', fbp, cookieOptions);
-    if (fbc) {
-      setCookie('_fbc', fbc, cookieOptions);
-    }
-  }
 }
 
+let userIp = getRequestHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
 event.event_id = eventData.event_id || 'sirdata_sgtm.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
@@ -631,18 +631,20 @@ if (data.forwardIdentifiers) {
     event.user_data.lead_id = eventData.lead_id;
     event.user_data.subscription_id = eventData.subscription_id;
   }
-  event.user_data.client_ip_address = getRequestHeader('gtm-helper-user-ip') || eventData.ip_override;
+  event.user_data.client_ip_address = userIp;
   event.user_data.country = getRequestHeader('gtm-helper-user-country');
   event.user_data.ct = getRequestHeader('gtm-helper-user-city');
 }
 
-if (consentGranted && data.forwardUserData && eventData.user_data) {
-  event.user_data.em = eventData.user_data.sha256_email_address || eventData.user_data.email_address || eventData.user_data.email;
+if (consentGranted && data.forwardUserData) {
+  eventData.user_data = eventData.user_data || {};
+  event.user_data.em = eventData.user_data.sha256_email_address || eventData.user_data.email_address || eventData.user_data.email || getRequestHeader('gtm-helper-user-hashed-email');
   event.user_data.ge = eventData.user_data.gender;
   event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
   if (eventData.user_data.address && eventData.user_data.address[0]) {
-    event.user_data.country = eventData.user_data.address[0].country;
-    event.user_data.ct = eventData.user_data.address[0].city;
+    // override getRequestHeader data when needed
+    event.user_data.country = eventData.user_data.address[0].country || event.user_data.country;
+    event.user_data.ct = eventData.user_data.address[0].city || event.user_data.ct;
     event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
     event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
     event.user_data.st = eventData.user_data.address[0].region;
@@ -712,39 +714,67 @@ if (testCode) {
 
 sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
   if (statusCode >= 200 && statusCode < 300) {
-    if (consentGranted && data.sendPixelFromBrowser) {
-      let url = 'https://www.facebook.com/tr/?ev='+ encodeUriComponent(event.event_name) + '&id=' + encodeUriComponent(data.pixelId.toString());
-      if (event.event_id) {
-        url += '&eid=' + encodeUriComponent(event.event_id);
+    if (consentGranted) {
+      if (data.generateFbpCookie) {
+        const cookieOptions = {
+          domain: '.' + originDomain,
+          path: '/',
+          samesite: 'Lax',
+          secure: true,
+          'max-age': 31536000,
+          HttpOnly: false
+        };
+        setCookie('_fbp', fbp, cookieOptions);
+        if (fbc) {
+          setCookie('_fbc', fbc, cookieOptions);
+        }
       }
-      if (fbp) {
-        url += '&fbp=' + encodeUriComponent(fbp);
-      }
-      if (fbc) {
-        url += '&fbc=' + encodeUriComponent(fbc);
-      }
-      const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
-      for (let i = 0; i < userParams.length; i++) {
-          if (userParams[i] && event.user_data[userParams[i]]) {
-              url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
+      if (data.sendPixelFromBrowser || data.sendPixelFromServer) {
+        let url = 'https://www.facebook.com/tr/?ev='+ encodeUriComponent(event.event_name) + '&id=' + encodeUriComponent(data.pixelId.toString());
+        if (event.event_id) {
+          url += '&eid=' + encodeUriComponent(event.event_id);
+        }
+        if (fbp) {
+          url += '&fbp=' + encodeUriComponent(fbp);
+        }
+        if (fbc) {
+          url += '&fbc=' + encodeUriComponent(fbc);
+        }
+        const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
+        for (let i = 0; i < userParams.length; i++) {
+            if (userParams[i] && event.user_data[userParams[i]]) {
+                url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
+            }
+        }
+        const customParams = ['content_category', 'content_type', 'content_name', 'contents', 'currency', 'search_string', 'value'];
+        for (let i = 0; i < customParams.length; i++) {
+            if (customParams[i] && event.custom_data[customParams[i]]) {
+                url += '&cd[' + customParams[i] + ']=' + encodeUriComponent(event.custom_data[customParams[i]].toString());
+            }
+        }
+        if (event.custom_data.content_ids) {
+          url += '&cd[content_ids]=' + encodeUriComponent(JSON.stringify(event.custom_data.content_ids));
+        }
+        if (event.custom_data.contents) {
+          url += '&cd[contents]=' + encodeUriComponent(JSON.stringify(event.custom_data.contents));
+        }
+        if (data.sendPixelFromBrowser) {
+          sendPixelFromBrowser(url);
+          data.gtmOnSuccess(); //send success here
+        }
+        if (data.sendPixelFromServer) {
+          if (event.user_data.client_ip_address) {
+            url += '&ud[client_ip_address]=' + encodeUriComponent(event.user_data.client_ip_address);
           }
+          sendHttpRequest(url, (statusCode, headers, body) => {}, {
+              headers: {'content-type': 'application/json', 'x-forwarded-for': userIp},
+              method: 'GET'
+          }, "");
+        }
+        return;
       }
-      url += '&ud[client_ip_address]=' + encodeUriComponent(event.user_data.client_ip_address);
-      const customParams = ['content_category', 'content_type', 'content_name', 'contents', 'currency', 'search_string', 'value'];
-      for (let i = 0; i < customParams.length; i++) {
-          if (customParams[i] && event.custom_data[customParams[i]]) {
-              url += '&cd[' + customParams[i] + ']=' + encodeUriComponent(event.custom_data[customParams[i]].toString());
-          }
-      }
-      if (event.custom_data.content_ids) {
-        url += '&cd[content_ids]=' + encodeUriComponent(JSON.stringify(event.custom_data.content_ids));
-      }
-      if (event.custom_data.contents) {
-        url += '&cd[contents]=' + encodeUriComponent(JSON.stringify(event.custom_data.contents));
-      }
-      sendPixelFromBrowser(url);
+      data.gtmOnSuccess();
     }
-    data.gtmOnSuccess();
   } else {
     data.gtmOnFailure();
   }
@@ -912,7 +942,7 @@ ___SERVER_PERMISSIONS___
             "listItem": [
               {
                 "type": 1,
-                "string": "https://graph.facebook.com/"
+                "string": "https://*.facebook.com/"
               }
             ]
           }
@@ -1030,6 +1060,21 @@ ___SERVER_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "gtm-helper-device-user-agent"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-user-has-adblocker"
                   }
                 ]
               },

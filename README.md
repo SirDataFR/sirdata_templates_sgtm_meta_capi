@@ -10,3 +10,5 @@ This tag works with any container hosting service (Google Cloud, Stape, Sirdata,
 - Utilizing TCF consent signals in addition to Consent Mode signals
 - Supporting a cookieless user ID when consent is not provided
 - Handling consent under GDPR where applicable, and adjusting behavior where GDPR does not apply.
+
+👉 For [Sirdata](https://sgtm.sirdata.io/login) clients, **many additional automatic optimizations are available**, such as integrated third-party ID management, enhanced consent handling, and advanced data enrichment. These features significantly improve Facebook’s Customer Match Quality score, boosting campaign efficiency and tracking precision.
