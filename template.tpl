@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.41,
+  "version": 1.42,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -472,13 +472,13 @@ const sha256Sync = require('sha256Sync');
 
 const eventData = getAllEventData();
 const gcsParam = getRequestQueryParameter('gcs') || eventData['x-ga-gcs'];
-const consentGranted = (getRequestHeader('gtm-helper-consent-personalized-ads') == 'true' || (gcsParam && gcsParam[2]=='1')|| (getRequestHeader('gtm-helper-gdpr-applies') == 'false' && !gcsParam)) ? true : false;
+const consentGranted = (getValueFromHeader('gtm-helper-consent-personalized-ads') == 'true' || (gcsParam && gcsParam[2]=='1')|| (getValueFromHeader('gtm-helper-gdpr-applies') == 'false' && !gcsParam)) ? true : false;
 if (!data.pixelId || !data.accessToken || (!data.sendWithoutConsent && !consentGranted)) {
   data.gtmOnSuccess();
   return;
 }
 
-const isAdblocked = getRequestHeader('gtm-helper-user-has-adblocker');
+const isAdblocked = getValueFromHeader('gtm-helper-user-has-adblocker');
 if (data.sendPixelFromServer && isAdblocked == 'false') {
     data.sendPixelFromServer = false;
 }
@@ -590,12 +590,19 @@ function setValidUUID(uuid) {
   if (isValidUUID(uuid)) {
     return uuid;
   }
-  return undefined;
+  return null;
 }
 
-const url = eventData.page_location || getRequestHeader('referer') || getRequestHeader('gtm-helper-site-origin');
+function getValueFromHeader(headerName) {
+    if (!headerName) { return; }
+    let valueFromHeader = getRequestHeader(headerName);
+    if (!valueFromHeader || valueFromHeader == "undefined") { return; }
+    return valueFromHeader;
+}
+
+const url = eventData.page_location || getRequestHeader('referer') || getValueFromHeader('gtm-helper-site-origin');
 const referrer = eventData.page_referrer;
-const originDomain = getRequestHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
+const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
 let fbp = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
@@ -624,7 +631,7 @@ if (consentGranted) {
   }
 }
 
-let userIp = getRequestHeader('gtm-helper-user-ip') || eventData.ip_override;
+let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
 event.event_id = eventData.event_id || 'sirdata_sgtm.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
@@ -639,21 +646,21 @@ event.user_data.fbp = fbp;
 if (data.forwardIdentifiers) {
   // consent for stored User Ids or user-agent or ids
   if (consentGranted) {
-    event.user_data.external_id = eventData.user_id || setValidUUID(getRequestHeader('gtm-helper-cookieless-id-domain-specific'));
-    event.user_data.client_user_agent = getRequestHeader('gtm-helper-device-user-agent') || eventData.user_agent;
+    event.user_data.external_id = eventData.user_id || setValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
+    event.user_data.client_user_agent = getValueFromHeader('gtm-helper-device-user-agent') || eventData.user_agent;
     event.user_data.lead_id = eventData.lead_id;
     event.user_data.subscription_id = eventData.subscription_id;
   }
   event.user_data.client_ip_address = userIp;
-  event.user_data.country = getRequestHeader('gtm-helper-user-country');
-  event.user_data.ct = getRequestHeader('gtm-helper-user-city');
+  event.user_data.country = getValueFromHeader('gtm-helper-user-country');
+  event.user_data.ct = getValueFromHeader('gtm-helper-user-city');
 }
 
 if (consentGranted && data.forwardUserData) {
   eventData.user_data = eventData.user_data || {};
   event.user_data.em = eventData.user_data.sha256_email_address;
   if (!event.user_data.em) {
-    let emailTemp = eventData.user_data.email_address || eventData.user_data.email || getRequestHeader('gtm-helper-user-hashed-email');
+    let emailTemp = eventData.user_data.email_address || eventData.user_data.email || getValueFromHeader('gtm-helper-user-hashed-email');
     if (isValidEmail(emailTemp)) {
       event.user_data.em = emailTemp;
     }
