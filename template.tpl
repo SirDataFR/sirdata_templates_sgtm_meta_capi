@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.42,
+  "version": 1.43,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -531,6 +531,13 @@ function hashData(data){
   return data;
 }
 
+function getValidSHA256Hash(data) {
+    if (!data || !isSHA256Hashed(data)) {
+        return;
+    }
+    return data;
+}
+
 function includes(arr, element) {
     for (let i = 0; i < arr.length; i++) {
         if (arr[i] === element) {
@@ -569,6 +576,13 @@ function isValidEmail(email) {
   return true;
 }
 
+function getValidEmail(email) {
+  if (!email || !isValidEmail(email)) {
+    return;
+  }
+  return email;
+}
+
 function isValidUUID(uuid) {
   if (uuid.length !== 36 || uuid[8] !== '-' || uuid[13] !== '-' || uuid[18] !== '-' || uuid[23] !== '-') {
     return false;
@@ -586,11 +600,11 @@ function isValidUUID(uuid) {
   return true;
 }
 
-function setValidUUID(uuid) {
-  if (isValidUUID(uuid)) {
-    return uuid;
+function getValidUUID(uuid) {
+  if (!uuid || isValidUUID(uuid)) {
+    return;
   }
-  return null;
+  return uuid;
 }
 
 function getValueFromHeader(headerName) {
@@ -646,7 +660,7 @@ event.user_data.fbp = fbp;
 if (data.forwardIdentifiers) {
   // consent for stored User Ids or user-agent or ids
   if (consentGranted) {
-    event.user_data.external_id = eventData.user_id || setValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
+    event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
     event.user_data.client_user_agent = getValueFromHeader('gtm-helper-device-user-agent') || eventData.user_agent;
     event.user_data.lead_id = eventData.lead_id;
     event.user_data.subscription_id = eventData.subscription_id;
@@ -658,12 +672,9 @@ if (data.forwardIdentifiers) {
 
 if (consentGranted && data.forwardUserData) {
   eventData.user_data = eventData.user_data || {};
-  event.user_data.em = eventData.user_data.sha256_email_address;
+  event.user_data.em = getValidSHA256Hash(eventData.user_data.sha256_email_address);
   if (!event.user_data.em) {
-    let emailTemp = eventData.user_data.email_address || eventData.user_data.email || getValueFromHeader('gtm-helper-user-hashed-email');
-    if (isValidEmail(emailTemp)) {
-      event.user_data.em = emailTemp;
-    }
+    event.user_data.em = getValidEmail(eventData.user_data.email_address) || getValidEmail(eventData.user_data.email) || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-email'));
   }
   event.user_data.ge = eventData.user_data.gender;
   event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
