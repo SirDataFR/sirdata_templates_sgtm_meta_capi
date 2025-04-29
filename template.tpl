@@ -556,6 +556,19 @@ function cleanValues(data, hash) {
   return cleanData;
 }
 
+function isValidEmail(email) {
+  if (!email || email.indexOf("@") === -1 || email.indexOf(".") === -1) {
+    return false;
+  }
+  const validChars = '0123456789abcdefABCDEF.@_-';
+  for (let i = 0; i < email.length; i++) {
+    if (validChars.indexOf(email[i]) === -1) {
+      return false;
+    }
+  }
+  return true;
+}
+
 function isValidUUID(uuid) {
   if (uuid.length !== 36 || uuid[8] !== '-' || uuid[13] !== '-' || uuid[18] !== '-' || uuid[23] !== '-') {
     return false;
@@ -638,7 +651,13 @@ if (data.forwardIdentifiers) {
 
 if (consentGranted && data.forwardUserData) {
   eventData.user_data = eventData.user_data || {};
-  event.user_data.em = eventData.user_data.sha256_email_address || eventData.user_data.email_address || eventData.user_data.email || getRequestHeader('gtm-helper-user-hashed-email');
+  event.user_data.em = eventData.user_data.sha256_email_address;
+  if (!event.user_data.em) {
+    let emailTemp = eventData.user_data.email_address || eventData.user_data.email || getRequestHeader('gtm-helper-user-hashed-email');
+    if (isValidEmail(emailTemp)) {
+      event.user_data.em = emailTemp;
+    }
+  }
   event.user_data.ge = eventData.user_data.gender;
   event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
   if (eventData.user_data.address && eventData.user_data.address[0]) {
