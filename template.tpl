@@ -612,7 +612,7 @@ function isValidUUID(uuid) {
 }
 
 function getValidUUID(uuid) {
-  if (!uuid || isValidUUID(uuid)) {
+  if (!uuid || !isValidUUID(uuid)) {
     return;
   }
   return uuid;
