@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.44,
+  "version": 1.45,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -453,6 +453,7 @@ ___SANDBOXED_JS_FOR_SERVER___
 
 const JSON = require('JSON');
 const Math = require('Math');
+const createRegex = require('createRegex');
 const computeEffectiveTldPlusOne = require('computeEffectiveTldPlusOne');
 const decodeUriComponent = require('decodeUriComponent');
 const encodeUriComponent = require('encodeUriComponent');
@@ -469,6 +470,7 @@ const sendHttpRequest = require('sendHttpRequest');
 const sendPixelFromBrowser = require('sendPixelFromBrowser');
 const setCookie = require('setCookie');
 const sha256Sync = require('sha256Sync');
+const testRegex = require('testRegex');
 
 const eventData = getAllEventData();
 const gcsParam = getRequestQueryParameter('gcs') || eventData['x-ga-gcs'];
@@ -477,6 +479,15 @@ if (!data.pixelId || !data.accessToken || (!data.sendWithoutConsent && !consentG
   data.gtmOnSuccess();
   return;
 }
+
+const isValidHost = function (host) {
+  let blockRegex = createRegex("^(localhost|\\d{1,3}(\\.\\d{1,3}){3}|\\[.*\\]|.*:)$", "i");
+  if (testRegex(blockRegex,host)) {
+    return false;
+  }
+  let domainRegex = createRegex("^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+$");
+  return testRegex(domainRegex,host);
+};
 
 const isAdblocked = getValueFromHeader('gtm-helper-user-has-adblocker');
 if (data.sendPixelFromServer && isAdblocked == 'false') {
@@ -798,12 +809,57 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         if (data.sendPixelFromBrowser) {
           sendPixelFromBrowser(url);
         }
-        if (data.sendPixelFromServer) {
-          if (event.user_data.client_ip_address) {
-            url += '&ud[client_ip_address]=' + encodeUriComponent(event.user_data.client_ip_address);
+        if (data.sendPixelFromServer && userIp) {
+          url += '&ud[client_ip_address]=' + userIp;
+          
+          let headersToSend = {
+            'x-forwarded-for': userIp,
+            'cache-control': 'no-cache',
+            'accept': 'image/*',
+          };
+
+          const xForwardedProto = getValueFromHeader('x-forwarded-proto');
+          if (xForwardedProto) {
+            headersToSend['x-forwarded-proto'] = xForwardedProto;
           }
+
+          const forwarded = getValueFromHeader('forwarded');
+          if (forwarded) {
+            headersToSend.forwarded = forwarded;
+          }
+          
+          const originHost = getValueFromHeader('gtm-helper-site-host');
+          if (isValidHost(originHost)) {
+            headersToSend['x-forwarded-host'] = originHost;
+          }
+
+          let ua = getValueFromHeader('gtm-helper-device-user-agent') || getValueFromHeader('user-agent');
+          if (ua) {
+            headersToSend['user-agent'] = ua;
+          }
+
+          let acceptEncoding = getValueFromHeader('accept-encoding');
+          if (acceptEncoding) {
+            headersToSend['accept-encoding'] = acceptEncoding;
+          }
+
+          let acceptLanguage = getValueFromHeader('accept-language');
+          if (acceptLanguage) {
+            headersToSend['accept-language'] = acceptLanguage;
+          }
+
+          let origin = getValueFromHeader('origin');
+          if (origin) {
+            headersToSend.origin = origin;
+          }
+
+          let referer = getValueFromHeader('referer');
+          if (referer) {
+            headersToSend.referer = referer;
+          }
+
           sendHttpRequest(url, (statusCode, headers, body) => {}, {
-              headers: {'content-type': 'application/json', 'x-forwarded-for': userIp},
+              headers: headersToSend,
               method: 'GET'
           }, "");
         }
@@ -1215,6 +1271,96 @@ ___SERVER_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "referer"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-site-host"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "x-forwarded-proto"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "forwarded"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "accept-encoding"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "accept-language"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "origin"
                   }
                 ]
               }
