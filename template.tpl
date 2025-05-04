@@ -489,8 +489,8 @@ const isValidHost = function (host) {
   return testRegex(domainRegex,host);
 };
 
-const isAdblocked = getValueFromHeader('gtm-helper-user-has-adblocker');
-if (data.sendPixelFromServer && isAdblocked == 'false') {
+const isAdblocked = getValueFromHeader('gtm-helper-user-has-adblocker') === 'true';
+if (data.sendPixelFromServer && !isAdblocked) {
     data.sendPixelFromServer = false;
 }
 
