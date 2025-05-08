@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.45,
+  "version": 1.46,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -494,8 +494,9 @@ if (data.sendPixelFromServer && !isAdblocked) {
     data.sendPixelFromServer = false;
 }
 
-const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.1';
+const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.2';
 const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
+const tsMilli = getTimestampMillis();
 
 const GA4_MAPPINGS = {
   'add_payment_info': 'AddPaymentInfo',
@@ -630,16 +631,16 @@ const referrer = eventData.page_referrer;
 const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
-let fbp = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
+let fbp = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
 let fbc = '';
 if (url) {
   const urlParsed = parseUrl(url);
   if (urlParsed && urlParsed.searchParams.fbclid) {
-    fbc = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
+    fbc = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
   } else {
     const referrerParsed = parseUrl(referrer);
     if (referrerParsed && referrerParsed.searchParams.fbclid) {
-      fbc = 'fb.' + subDomainIndex + '.' + getTimestampMillis() + '.' + decodeUriComponent(referrerParsed.searchParams.fbclid);
+      fbc = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + decodeUriComponent(referrerParsed.searchParams.fbclid);
     }
   }
 }
@@ -659,10 +660,10 @@ if (consentGranted) {
 let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
-event.event_id = eventData.event_id || 'sirdata_sgtm.' + getTimestampMillis() + '.' + generateRandom(1000000000, 2147483647);
+event.event_id = eventData.event_id || 'sirdata_sgtm.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
 event.event_name = getEventName(eventData.event_name, data);
 event.event_source_url = url;
-event.event_time = eventData.event_time || Math.round(getTimestampMillis() / 1000);
+event.event_time = eventData.event_time || Math.round(tsMilli / 1000);
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
@@ -671,11 +672,11 @@ event.user_data.fbp = fbp;
 if (data.forwardIdentifiers) {
   // consent for stored User Ids or user-agent or ids
   if (consentGranted) {
-    event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
     event.user_data.client_user_agent = getValueFromHeader('gtm-helper-device-user-agent') || eventData.user_agent;
     event.user_data.lead_id = eventData.lead_id;
     event.user_data.subscription_id = eventData.subscription_id;
   }
+  event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
   event.user_data.client_ip_address = userIp;
   event.user_data.country = getValueFromHeader('gtm-helper-user-country');
   event.user_data.ct = getValueFromHeader('gtm-helper-user-city');
@@ -811,6 +812,7 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         }
         if (data.sendPixelFromServer && userIp) {
           url += '&ud[client_ip_address]=' + userIp;
+          url += '&ts=' + tsMilli +'&it=' + tsMilli;
           
           let headersToSend = {
             'x-forwarded-for': userIp,
