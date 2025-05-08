@@ -15,5 +15,5 @@
 homepage: "https://sgtm.sirdata.io"
 documentation: "https://server-side.docs.sirdata.net/sirdata-server-side/v/english-1/installation/facebook-conversions-api-setup"
 versions:
-  - sha: 8746516efbc93d9567e52a52fd3e2d0f43ebb407
-    changeNotes: fix valid id verification
+  - sha: 4647be34eefc4593469ff2f32941f08fd68e70f1
+    changeNotes: add timestamp to payload
