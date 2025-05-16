@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.46,
+  "version": 1.47,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -789,6 +789,12 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         if (fbc) {
           url += '&fbc=' + encodeUriComponent(fbc);
         }
+        if (event.event_source_url) {
+          url += '&dl=' + encodeUriComponent(event.event_source_url);
+        }
+        if (event.referrer_url) {
+          url += '&rl=' + encodeUriComponent(event.referrer_url);
+        }
         const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
         for (let i = 0; i < userParams.length; i++) {
             if (userParams[i] && event.user_data[userParams[i]]) {
@@ -813,7 +819,7 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         if (data.sendPixelFromServer && userIp) {
           url += '&ud[client_ip_address]=' + userIp;
           url += '&ts=' + tsMilli +'&it=' + tsMilli;
-          
+
           let headersToSend = {
             'x-forwarded-for': userIp,
             'cache-control': 'no-cache',
@@ -829,7 +835,7 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
           if (forwarded) {
             headersToSend.forwarded = forwarded;
           }
-          
+
           const originHost = getValueFromHeader('gtm-helper-site-host');
           if (isValidHost(originHost)) {
             headersToSend['x-forwarded-host'] = originHost;
