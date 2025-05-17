@@ -497,6 +497,8 @@ if (data.sendPixelFromServer && !isAdblocked) {
 const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.2';
 const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
 const tsMilli = getTimestampMillis();
+const itMilli = tsMilli - (700 + generateRandom(0, 10000000) % 1301);
+const fbpMilli = tsMilli - (15 + generateRandom(0, 10000000) % 11);
 
 const GA4_MAPPINGS = {
   'add_payment_info': 'AddPaymentInfo',
@@ -631,16 +633,16 @@ const referrer = eventData.page_referrer;
 const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
-let fbp = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
+let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
 let fbc = '';
 if (url) {
   const urlParsed = parseUrl(url);
   if (urlParsed && urlParsed.searchParams.fbclid) {
-    fbc = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
+    fbc = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
   } else {
     const referrerParsed = parseUrl(referrer);
     if (referrerParsed && referrerParsed.searchParams.fbclid) {
-      fbc = 'fb.' + subDomainIndex + '.' + tsMilli + '.' + decodeUriComponent(referrerParsed.searchParams.fbclid);
+      fbc = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + decodeUriComponent(referrerParsed.searchParams.fbclid);
     }
   }
 }
@@ -818,7 +820,7 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         }
         if (data.sendPixelFromServer && userIp) {
           url += '&ud[client_ip_address]=' + userIp;
-          url += '&ts=' + tsMilli +'&it=' + tsMilli;
+          url += '&ts=' + tsMilli +'&it=' + itMilli;
 
           let headersToSend = {
             'x-forwarded-for': userIp,
