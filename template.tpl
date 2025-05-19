@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "sirdata_templates_sgtm_meta_capi",
-  "version": 1.47,
+  "version": 1.48,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -227,7 +227,7 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "CHECKBOX",
     "name": "sendWithoutConsent",
-    "checkboxText": "Experimental: send data without consent using a random fbp ID or cookieless user ID",
+    "checkboxText": "Experimental: send CAPI data (and pixel from server when adblocker is detected) without consent using a cookieless ID instead of cookies",
     "simpleValueType": true,
     "help": "To use the cookieless user ID, the client must subscribe to the \"site-only cookieless user ID\" option offered by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e, which doesn\u0027t allow tracking accross websites.",
     "alwaysInSummary": true
@@ -490,10 +490,13 @@ const isValidHost = function (host) {
 };
 
 const isAdblocked = getValueFromHeader('gtm-helper-user-has-adblocker') === 'true';
-if (data.sendPixelFromServer && !isAdblocked) {
+if (data.sendPixelFromServer) {
+  if (!isAdblocked) {
     data.sendPixelFromServer = false;
+  } else {
+      data.sendPixelFromBrowser = false;
+  }
 }
-
 const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.2';
 const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
 const tsMilli = getTimestampMillis();
@@ -628,17 +631,17 @@ function getValueFromHeader(headerName) {
     return valueFromHeader;
 }
 
-const url = eventData.page_location || getRequestHeader('referer') || getValueFromHeader('gtm-helper-site-origin');
+const location = eventData.page_location || getRequestHeader('referer') || getValueFromHeader('gtm-helper-site-origin');
 const referrer = eventData.page_referrer;
-const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(url);
+const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(location);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
 let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
 let fbc = '';
-if (url) {
-  const urlParsed = parseUrl(url);
-  if (urlParsed && urlParsed.searchParams.fbclid) {
-    fbc = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + decodeUriComponent(urlParsed.searchParams.fbclid);
+if (location) {
+  const locationParsed = parseUrl(location);
+  if (locationParsed && locationParsed.searchParams.fbclid) {
+    fbc = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + decodeUriComponent(locationParsed.searchParams.fbclid);
   } else {
     const referrerParsed = parseUrl(referrer);
     if (referrerParsed && referrerParsed.searchParams.fbclid) {
@@ -664,7 +667,7 @@ let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
 event.event_id = eventData.event_id || 'sirdata_sgtm.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
 event.event_name = getEventName(eventData.event_name, data);
-event.event_source_url = url;
+event.event_source_url = location;
 event.event_time = eventData.event_time || Math.round(tsMilli / 1000);
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
@@ -763,6 +766,104 @@ if (testCode) {
   eventRequest.test_event_code = testCode;
 }
 
+if (
+  (consentGranted && (data.sendPixelFromBrowser || data.sendPixelFromServer))
+  ||
+  (data.sendWithoutConsent && data.sendPixelFromServer)
+) {
+  let url = 'https://www.facebook.com/tr/?ev='+ encodeUriComponent(event.event_name) + '&id=' + encodeUriComponent(data.pixelId.toString());
+  if (event.event_id) {
+    url += '&eid=' + encodeUriComponent(event.event_id);
+  }
+  if (fbp) {
+    url += '&fbp=' + encodeUriComponent(fbp);
+  }
+  if (fbc) {
+    url += '&fbc=' + encodeUriComponent(fbc);
+  }
+  if (event.event_source_url) {
+    url += '&dl=' + encodeUriComponent(event.event_source_url);
+  }
+  if (event.referrer_url) {
+    url += '&rl=' + encodeUriComponent(event.referrer_url);
+  }
+  const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
+  for (let i = 0; i < userParams.length; i++) {
+      if (userParams[i] && event.user_data[userParams[i]]) {
+          url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
+      }
+  }
+  const customParams = ['content_category', 'content_type', 'content_name', 'currency', 'search_string', 'value'];
+  for (let i = 0; i < customParams.length; i++) {
+      if (customParams[i] && event.custom_data[customParams[i]]) {
+          url += '&cd[' + customParams[i] + ']=' + encodeUriComponent(event.custom_data[customParams[i]].toString());
+      }
+  }
+  if (event.custom_data.content_ids) {
+    url += '&cd[content_ids]=' + encodeUriComponent(JSON.stringify(event.custom_data.content_ids));
+  }
+  if (event.custom_data.contents) {
+    url += '&cd[contents]=' + encodeUriComponent(JSON.stringify(event.custom_data.contents));
+  }
+  if (data.sendPixelFromBrowser) {
+    sendPixelFromBrowser(url);
+  } else if (data.sendPixelFromServer && userIp) {
+    url += '&ud[client_ip_address]=' + userIp;
+    url += '&ts=' + tsMilli +'&it=' + itMilli;
+
+    let headersToSend = {
+      'x-forwarded-for': userIp,
+      'cache-control': 'no-cache',
+      'accept': 'image/*',
+    };
+
+    const xForwardedProto = getValueFromHeader('x-forwarded-proto');
+    if (xForwardedProto) {
+      headersToSend['x-forwarded-proto'] = xForwardedProto;
+    }
+
+    const forwarded = getValueFromHeader('forwarded');
+    if (forwarded) {
+      headersToSend.forwarded = forwarded;
+    }
+
+    const originHost = getValueFromHeader('gtm-helper-site-host');
+    if (isValidHost(originHost)) {
+      headersToSend['x-forwarded-host'] = originHost;
+    }
+
+    let ua = getValueFromHeader('gtm-helper-device-user-agent') || getValueFromHeader('user-agent');
+    if (ua) {
+      headersToSend['user-agent'] = ua;
+    }
+
+    let acceptEncoding = getValueFromHeader('accept-encoding');
+    if (acceptEncoding) {
+      headersToSend['accept-encoding'] = acceptEncoding;
+    }
+
+    let acceptLanguage = getValueFromHeader('accept-language');
+    if (acceptLanguage) {
+      headersToSend['accept-language'] = acceptLanguage;
+    }
+
+    let origin = getValueFromHeader('origin');
+    if (origin) {
+      headersToSend.origin = origin;
+    }
+
+    let referer = getValueFromHeader('referer');
+    if (referer) {
+      headersToSend.referer = referer;
+    }
+
+    sendHttpRequest(url, (statusCode, headers, body) => {}, {
+        headers: headersToSend,
+        method: 'GET'
+    }, "");
+  }
+}
+
 sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
   if (statusCode >= 200 && statusCode < 300) {
     if (consentGranted) {
@@ -778,100 +879,6 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         setCookie('_fbp', fbp, cookieOptions);
         if (fbc) {
           setCookie('_fbc', fbc, cookieOptions);
-        }
-      }
-      if (data.sendPixelFromBrowser || data.sendPixelFromServer) {
-        let url = 'https://www.facebook.com/tr/?ev='+ encodeUriComponent(event.event_name) + '&id=' + encodeUriComponent(data.pixelId.toString());
-        if (event.event_id) {
-          url += '&eid=' + encodeUriComponent(event.event_id);
-        }
-        if (fbp) {
-          url += '&fbp=' + encodeUriComponent(fbp);
-        }
-        if (fbc) {
-          url += '&fbc=' + encodeUriComponent(fbc);
-        }
-        if (event.event_source_url) {
-          url += '&dl=' + encodeUriComponent(event.event_source_url);
-        }
-        if (event.referrer_url) {
-          url += '&rl=' + encodeUriComponent(event.referrer_url);
-        }
-        const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
-        for (let i = 0; i < userParams.length; i++) {
-            if (userParams[i] && event.user_data[userParams[i]]) {
-                url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
-            }
-        }
-        const customParams = ['content_category', 'content_type', 'content_name', 'currency', 'search_string', 'value'];
-        for (let i = 0; i < customParams.length; i++) {
-            if (customParams[i] && event.custom_data[customParams[i]]) {
-                url += '&cd[' + customParams[i] + ']=' + encodeUriComponent(event.custom_data[customParams[i]].toString());
-            }
-        }
-        if (event.custom_data.content_ids) {
-          url += '&cd[content_ids]=' + encodeUriComponent(JSON.stringify(event.custom_data.content_ids));
-        }
-        if (event.custom_data.contents) {
-          url += '&cd[contents]=' + encodeUriComponent(JSON.stringify(event.custom_data.contents));
-        }
-        if (data.sendPixelFromBrowser) {
-          sendPixelFromBrowser(url);
-        }
-        if (data.sendPixelFromServer && userIp) {
-          url += '&ud[client_ip_address]=' + userIp;
-          url += '&ts=' + tsMilli +'&it=' + itMilli;
-
-          let headersToSend = {
-            'x-forwarded-for': userIp,
-            'cache-control': 'no-cache',
-            'accept': 'image/*',
-          };
-
-          const xForwardedProto = getValueFromHeader('x-forwarded-proto');
-          if (xForwardedProto) {
-            headersToSend['x-forwarded-proto'] = xForwardedProto;
-          }
-
-          const forwarded = getValueFromHeader('forwarded');
-          if (forwarded) {
-            headersToSend.forwarded = forwarded;
-          }
-
-          const originHost = getValueFromHeader('gtm-helper-site-host');
-          if (isValidHost(originHost)) {
-            headersToSend['x-forwarded-host'] = originHost;
-          }
-
-          let ua = getValueFromHeader('gtm-helper-device-user-agent') || getValueFromHeader('user-agent');
-          if (ua) {
-            headersToSend['user-agent'] = ua;
-          }
-
-          let acceptEncoding = getValueFromHeader('accept-encoding');
-          if (acceptEncoding) {
-            headersToSend['accept-encoding'] = acceptEncoding;
-          }
-
-          let acceptLanguage = getValueFromHeader('accept-language');
-          if (acceptLanguage) {
-            headersToSend['accept-language'] = acceptLanguage;
-          }
-
-          let origin = getValueFromHeader('origin');
-          if (origin) {
-            headersToSend.origin = origin;
-          }
-
-          let referer = getValueFromHeader('referer');
-          if (referer) {
-            headersToSend.referer = referer;
-          }
-
-          sendHttpRequest(url, (statusCode, headers, body) => {}, {
-              headers: headersToSend,
-              method: 'GET'
-          }, "");
         }
       }
     }
