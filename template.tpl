@@ -471,6 +471,7 @@ const sendPixelFromBrowser = require('sendPixelFromBrowser');
 const setCookie = require('setCookie');
 const sha256Sync = require('sha256Sync');
 const testRegex = require('testRegex');
+const Object = require('Object');
 
 const eventData = getAllEventData();
 const gcsParam = getRequestQueryParameter('gcs') || eventData['x-ga-gcs'];
@@ -723,12 +724,26 @@ if (eventData.items && eventData.items.length > 0) {
 
   let contents = [];
   let contentIds = [];
+  let num_items = 0;
   for (let i = 0; i < eventData.items.length; i++) {
     if (eventData.items[i]) {
-      contents.push({id: eventData.items[i].item_id||'',item_price: makeNumber(eventData.items[i].price||0),quantity: makeNumber(eventData.items[i].quantity||0)});
+      let objectQuantity = makeNumber(eventData.items[i].quantity||0);
+      num_items += objectQuantity;
+      contents.push({id: eventData.items[i].item_id||'',item_price: makeNumber(eventData.items[i].price||0),quantity: objectQuantity});
       contentIds.push(eventData.items[i].item_id||'');
-      if (!eventValue && eventData.items[i].item_value) {
-        eventValue += makeNumber(eventData.items[i].price||0) * makeNumber(eventData.items[i].quantity||0);
+      if (eventData.items[i].item_value) {
+        eventValue += makeNumber(eventData.items[i].price||0) * objectQuantity;
+      }
+    }
+  }
+  event.custom_data.num_items = Math.max(1,num_items);
+  const reservedCustomParams = ['content_category', 'content_type', 'content_name', 'currency', 'search_string', 'value', 'content_ids', 'contents', 'currency', 'item_name', 'item_value', 'item_id', 'item_category', 'contents'];
+  if (eventData.items.length === 1) {
+    const keys = Object.keys(eventData.items[0]);
+    for (let j = 0; j < keys.length; j++) {
+      const key = keys[j];
+      if (reservedCustomParams.indexOf(key) === -1) {
+        event.custom_data[key] = eventData.items[0][key];
       }
     }
   }
@@ -738,7 +753,6 @@ if (eventData.items && eventData.items.length > 0) {
   if (contentIds && contentIds.length > 0) {
     event.custom_data.content_ids = contentIds;
   }
-
   if (!eventCurrency && eventData.items[0].currency) {
     eventCurrency = eventData.items[0].currency;
   }
@@ -767,9 +781,7 @@ if (testCode) {
 }
 
 if (
-  (consentGranted && (data.sendPixelFromBrowser || data.sendPixelFromServer))
-  ||
-  (data.sendWithoutConsent && data.sendPixelFromServer)
+  (consentGranted && (data.sendPixelFromBrowser || data.sendPixelFromServer)) || (data.sendWithoutConsent && data.sendPixelFromServer)
 ) {
   let url = 'https://www.facebook.com/tr/?ev='+ encodeUriComponent(event.event_name) + '&id=' + encodeUriComponent(data.pixelId.toString());
   if (event.event_id) {
@@ -787,16 +799,33 @@ if (
   if (event.referrer_url) {
     url += '&rl=' + encodeUriComponent(event.referrer_url);
   }
+  if (eventData.screen_resolution) {
+    let screenWidth = eventData.screen_resolution.split('x')[0]||"";
+    if (screenWidth) {
+      url += '&sw=' + encodeUriComponent(screenWidth);
+    }
+    let screenHeight = eventData.screen_resolution.split('x')[1]||"";
+    if (screenHeight) {
+      url += '&sh=' + encodeUriComponent(screenHeight);
+    }
+  }
+  
   const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
   for (let i = 0; i < userParams.length; i++) {
       if (userParams[i] && event.user_data[userParams[i]]) {
           url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
       }
   }
-  const customParams = ['content_category', 'content_type', 'content_name', 'currency', 'search_string', 'value'];
-  for (let i = 0; i < customParams.length; i++) {
-      if (customParams[i] && event.custom_data[customParams[i]]) {
-          url += '&cd[' + customParams[i] + ']=' + encodeUriComponent(event.custom_data[customParams[i]].toString());
+  const cdKeys = Object.keys(event.custom_data);
+  for (let i = 0; i < cdKeys.length; i++) {
+    const cdKey = cdKeys[i];
+    if (cdKey !== 'content_ids' && cdKey !== 'contents' && event.custom_data[cdKey]) {
+      url += '&cd[' + cdKey + ']=' + encodeUriComponent(event.custom_data[cdKey].toString());
+    }
+  }
+  for (let i = 0; i < event.custom_data.length; i++) {
+      if (i != 'content_ids' && i != 'contents' && event.custom_data[i]) {
+          url += '&cd[' + i + ']=' + encodeUriComponent(event.custom_data[event.custom_data[i]].toString());
       }
   }
   if (event.custom_data.content_ids) {
@@ -805,12 +834,11 @@ if (
   if (event.custom_data.contents) {
     url += '&cd[contents]=' + encodeUriComponent(JSON.stringify(event.custom_data.contents));
   }
+  url += '&ts=' + tsMilli +'&it=' + itMilli;
   if (data.sendPixelFromBrowser) {
     sendPixelFromBrowser(url);
   } else if (data.sendPixelFromServer && userIp) {
     url += '&ud[client_ip_address]=' + userIp;
-    url += '&ts=' + tsMilli +'&it=' + itMilli;
-
     let headersToSend = {
       'x-forwarded-for': userIp,
       'cache-control': 'no-cache',
@@ -1488,6 +1516,24 @@ ___SERVER_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
+  },
+  {
+    "instance": {
+      "key": {
+        "publicId": "logging",
+        "versionId": "1"
+      },
+      "param": [
+        {
+          "key": "environments",
+          "value": {
+            "type": 1,
+            "string": "debug"
+          }
+        }
+      ]
+    },
+    "isRequired": true
   }
 ]
 
@@ -1512,3 +1558,5 @@ setup: ''
 ___NOTES___
 
 Created on 21/11/2022, 20:30:02
+
+
