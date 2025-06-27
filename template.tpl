@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.51,
+  "version": 1.52,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -585,7 +585,7 @@ function isValidEmail(email) {
   if (!email || email.indexOf("@") === -1 || email.indexOf(".") === -1) {
     return false;
   }
-  const validChars = '0123456789abcdefABCDEF.@_-';
+  const validChars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.@_-';
   for (let i = 0; i < email.length; i++) {
     if (validChars.indexOf(email[i]) === -1) {
       return false;
@@ -595,10 +595,18 @@ function isValidEmail(email) {
 }
 
 function getValidEmail(email) {
+  if (!email) {
+    return;
+  }
+  const atIndex = email.indexOf("@");
+  const local = email.slice(0, atIndex);
+  const domain = email.slice(atIndex);
+  const cleanLocal = includes(local, "+") ? local.slice(0, local.indexOf("+")) : local;
+  email = cleanLocal + domain;
   if (!email || !isValidEmail(email)) {
     return;
   }
-  return email;
+  return email.toLowerCase();
 }
 
 function isValidUUID(uuid) {
