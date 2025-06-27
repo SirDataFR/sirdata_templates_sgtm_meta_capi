@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.50,
+  "version": 1.51,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -1516,24 +1516,6 @@ ___SERVER_PERMISSIONS___
       "isEditedByUser": true
     },
     "isRequired": true
-  },
-  {
-    "instance": {
-      "key": {
-        "publicId": "logging",
-        "versionId": "1"
-      },
-      "param": [
-        {
-          "key": "environments",
-          "value": {
-            "type": 1,
-            "string": "debug"
-          }
-        }
-      ]
-    },
-    "isRequired": true
   }
 ]
 
@@ -1558,5 +1540,4 @@ setup: ''
 ___NOTES___
 
 Created on 21/11/2022, 20:30:02
-
 
