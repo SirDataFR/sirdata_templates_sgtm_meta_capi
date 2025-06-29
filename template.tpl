@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.52,
+  "version": 1.53,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -498,8 +498,8 @@ if (data.sendPixelFromServer) {
       data.sendPixelFromBrowser = false;
   }
 }
-const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.2';
-const CAPI_ENDPOINT = 'https://graph.facebook.com/v20.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
+const CAPI_PARTNER_AGENT = 'sgtm-sirdata-2.0.3';
+const CAPI_ENDPOINT = 'https://graph.facebook.com/v23.0/' + data.pixelId + '/events?access_token=' + data.accessToken;
 const tsMilli = getTimestampMillis();
 const itMilli = tsMilli - (700 + generateRandom(0, 10000000) % 1301);
 const fbpMilli = tsMilli - (15 + generateRandom(0, 10000000) % 11);
