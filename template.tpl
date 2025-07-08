@@ -674,7 +674,7 @@ if (consentGranted) {
 let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
-event.event_id = eventData.event_id || 'sirdata_sgtm.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
+event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata_sgtm.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
 event.event_name = getEventName(eventData.event_name, data);
 event.event_source_url = location;
 event.event_time = eventData.event_time || Math.round(tsMilli / 1000);
