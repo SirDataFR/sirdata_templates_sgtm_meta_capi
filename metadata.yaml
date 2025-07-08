@@ -15,5 +15,5 @@
 homepage: "https://sgtm.sirdata.io"
 documentation: "https://server-side.docs.sirdata.net/sirdata-server-side/v/english-1/installation/facebook-conversions-api-setup"
 versions:
-  - sha: 7c9b71e2d7f0c20acb7fdce55ac4c7686853d38d
-    changeNotes: Meta API version
+  - sha: e35869d08b1220bf9169070abb86ab235f93516a
+    changeNotes: transaction_id as event_id
