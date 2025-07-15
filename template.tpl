@@ -482,11 +482,11 @@ if (!data.pixelId || !data.accessToken || (!data.sendWithoutConsent && !consentG
 }
 
 const isValidHost = function (host) {
-  let blockRegex = createRegex("^(localhost|\\d{1,3}(\\.\\d{1,3}){3}|\\[.*\\]|.*:)$", "i");
+  let blockRegex = createRegex('^(localhost|\\d{1,3}(\\.\\d{1,3}){3}|\\[.*\\]|.*:)$', 'i');
   if (testRegex(blockRegex,host)) {
     return false;
   }
-  let domainRegex = createRegex("^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+$");
+  let domainRegex = createRegex('^[a-zA-Z0-9-]+(\\.[a-zA-Z0-9-]+)+$');
   return testRegex(domainRegex,host);
 };
 
@@ -582,7 +582,7 @@ function cleanValues(data, hash) {
 }
 
 function isValidEmail(email) {
-  if (!email || email.indexOf("@") === -1 || email.indexOf(".") === -1) {
+  if (!email || email.indexOf('@') === -1 || email.indexOf('.') === -1) {
     return false;
   }
   const validChars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ.@_-';
@@ -598,10 +598,10 @@ function getValidEmail(email) {
   if (!email) {
     return;
   }
-  const atIndex = email.indexOf("@");
+  const atIndex = email.indexOf('@');
   const local = email.slice(0, atIndex);
   const domain = email.slice(atIndex);
-  const cleanLocal = includes(local, "+") ? local.slice(0, local.indexOf("+")) : local;
+  const cleanLocal = includes(local, '+') ? local.slice(0, local.indexOf('+')) : local;
   email = cleanLocal + domain;
   if (!email || !isValidEmail(email)) {
     return;
@@ -636,7 +636,7 @@ function getValidUUID(uuid) {
 function getValueFromHeader(headerName) {
     if (!headerName) { return; }
     let valueFromHeader = getRequestHeader(headerName);
-    if (!valueFromHeader || valueFromHeader == "undefined") { return; }
+    if (!valueFromHeader || valueFromHeader == 'undefined') { return; }
     return valueFromHeader;
 }
 
@@ -646,7 +646,7 @@ const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffe
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
 let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
-let fbc = '';
+let fbc;
 if (location) {
   const locationParsed = parseUrl(location);
   if (locationParsed && locationParsed.searchParams.fbclid) {
@@ -671,13 +671,15 @@ if (consentGranted) {
   }
 }
 
+let userCountry;
+let userCity;
 let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
-event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata_sgtm.' + tsMilli + '.' + generateRandom(1000000000, 2147483647);
+event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
 event.event_name = getEventName(eventData.event_name, data);
 event.event_source_url = location;
-event.event_time = eventData.event_time || Math.round(tsMilli / 1000);
+event.event_time = eventData.event_time || Math.floor(tsMilli / 1000);
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
@@ -706,13 +708,21 @@ if (consentGranted && data.forwardUserData) {
   event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
   if (eventData.user_data.address && eventData.user_data.address[0]) {
     // override getRequestHeader data when needed
-    event.user_data.country = eventData.user_data.address[0].country || event.user_data.country;
-    event.user_data.ct = eventData.user_data.address[0].city || event.user_data.ct;
+    event.user_data.country = eventData.user_data.address[0].country || event.user_data.country || getValueFromHeader('gtm-helper-user-country');
+    event.user_data.ct = (eventData.user_data.address[0].city || event.user_data.ct || getValueFromHeader('gtm-helper-user-city')).replace(' ','');
     event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
     event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
     event.user_data.st = eventData.user_data.address[0].region;
     event.user_data.zp = eventData.user_data.address[0].postal_code;
   }
+}
+
+if (event.user_data.country) {
+  userCountry = event.user_data.country;
+}
+
+if (event.user_data.ct) {
+  userCity = event.user_data.ct;
 }
 
 let eventCurrency = eventData.currency || '';
@@ -788,6 +798,16 @@ if (testCode) {
   eventRequest.test_event_code = testCode;
 }
 
+let requests = 1;
+function triggerResult(success) {
+  if (requests >0) { return ;}
+  if (success) {
+    data.gtmOnSuccess();
+  } else {
+    data.gtmOnFailure();
+  }
+}
+
 if (
   (consentGranted && (data.sendPixelFromBrowser || data.sendPixelFromServer)) || (data.sendWithoutConsent && data.sendPixelFromServer)
 ) {
@@ -808,22 +828,31 @@ if (
     url += '&rl=' + encodeUriComponent(event.referrer_url);
   }
   if (eventData.screen_resolution) {
-    let screenWidth = eventData.screen_resolution.split('x')[0]||"";
+    let screenWidth = eventData.screen_resolution.split('x')[0]||'';
     if (screenWidth) {
       url += '&sw=' + encodeUriComponent(screenWidth);
     }
-    let screenHeight = eventData.screen_resolution.split('x')[1]||"";
+    let screenHeight = eventData.screen_resolution.split('x')[1]||'';
     if (screenHeight) {
       url += '&sh=' + encodeUriComponent(screenHeight);
     }
   }
   
-  const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country', 'external_id'];
+  const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'st', 'zp', 'external_id'];
   for (let i = 0; i < userParams.length; i++) {
-      if (userParams[i] && event.user_data[userParams[i]]) {
-          url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
-      }
+    if (userParams[i] && event.user_data[userParams[i]]) {
+      url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
+    }
   }
+
+  if (userCountry) {
+    url += '&ud[country]=' + encodeUriComponent(userCountry.toLowerCase());
+  }
+
+  if (userCity) {
+    url += '&ud[ct]=' + encodeUriComponent(userCity.toLowerCase());
+  }
+
   const cdKeys = Object.keys(event.custom_data);
   for (let i = 0; i < cdKeys.length; i++) {
     const cdKey = cdKeys[i];
@@ -846,6 +875,7 @@ if (
   if (data.sendPixelFromBrowser) {
     sendPixelFromBrowser(url);
   } else if (data.sendPixelFromServer && userIp) {
+    requests = 2;
     url += '&ud[client_ip_address]=' + userIp;
     let headersToSend = {
       'x-forwarded-for': userIp,
@@ -893,14 +923,22 @@ if (
       headersToSend.referer = referer;
     }
 
-    sendHttpRequest(url, (statusCode, headers, body) => {}, {
+    sendHttpRequest(url, (statusCode, headers, body) => {
+      requests = requests - 1;
+      if (statusCode >= 200 && statusCode < 300) {
+        triggerResult(true);
+      } else {
+        triggerResult(false);
+      }
+    }, {
         headers: headersToSend,
         method: 'GET'
-    }, "");
+    }, null);
   }
 }
 
 sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
+  requests = requests - 1;
   if (statusCode >= 200 && statusCode < 300) {
     if (consentGranted) {
       if (data.generateFbpCookie) {
@@ -918,9 +956,9 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
         }
       }
     }
-    data.gtmOnSuccess();
+    triggerResult(true);
   } else {
-    data.gtmOnFailure();
+    triggerResult(false);
   }
 }, {headers: {'content-type': 'application/json'}, method: 'POST'}, JSON.stringify(eventRequest));
 
