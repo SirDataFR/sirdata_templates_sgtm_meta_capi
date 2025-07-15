@@ -671,15 +671,13 @@ if (consentGranted) {
   }
 }
 
-let userCountry;
-let userCity;
 let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
-let event = {user_data: {}, custom_data: {}};
+let event = {user_data: {}, custom_data: {}, original_event_data: {}};
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
 event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
-event.event_name = getEventName(eventData.event_name, data);
+event.event_name = event.original_event_data.event_name = getEventName(eventData.event_name, data);
+event.event_time = event.original_event_data.event_time = eventData.event_time || Math.floor(tsMilli / 1000);
 event.event_source_url = location;
-event.event_time = eventData.event_time || Math.floor(tsMilli / 1000);
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
@@ -695,7 +693,7 @@ if (data.forwardIdentifiers) {
   event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
   event.user_data.client_ip_address = userIp;
   event.user_data.country = getValueFromHeader('gtm-helper-user-country');
-  event.user_data.ct = getValueFromHeader('gtm-helper-user-city').replace(' ','');
+  event.user_data.ct = (getValueFromHeader('gtm-helper-user-city') || '').replace(' ','').replace('-','');
 }
 
 if (consentGranted && data.forwardUserData) {
@@ -709,20 +707,12 @@ if (consentGranted && data.forwardUserData) {
   if (eventData.user_data.address && eventData.user_data.address[0]) {
     // override getRequestHeader data when needed
     event.user_data.country = eventData.user_data.address[0].country || event.user_data.country || getValueFromHeader('gtm-helper-user-country');
-    event.user_data.ct = (eventData.user_data.address[0].city || event.user_data.ct || getValueFromHeader('gtm-helper-user-city')).replace(' ','');
+    event.user_data.ct = ((eventData.user_data.address[0].city || event.user_data.ct || getValueFromHeader('gtm-helper-user-city')) || '').replace(' ','').replace('-','');
     event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
     event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
     event.user_data.st = eventData.user_data.address[0].region;
     event.user_data.zp = eventData.user_data.address[0].postal_code;
   }
-}
-
-if (event.user_data.country) {
-  userCountry = event.user_data.country;
-}
-
-if (event.user_data.ct) {
-  userCity = event.user_data.ct;
 }
 
 let eventCurrency = eventData.currency || '';
@@ -838,19 +828,11 @@ if (
     }
   }
   
-  const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'st', 'zp', 'external_id'];
+  const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'st', 'zp', 'external_id', 'ct', 'country'];
   for (let i = 0; i < userParams.length; i++) {
     if (userParams[i] && event.user_data[userParams[i]]) {
       url += '&ud[' + userParams[i] + ']=' + encodeUriComponent(event.user_data[userParams[i]].toString());
     }
-  }
-
-  if (userCountry) {
-    url += '&ud[country]=' + encodeUriComponent(userCountry.toLowerCase());
-  }
-
-  if (userCity) {
-    url += '&ud[ct]=' + encodeUriComponent(userCity.toLowerCase());
   }
 
   const cdKeys = Object.keys(event.custom_data);
