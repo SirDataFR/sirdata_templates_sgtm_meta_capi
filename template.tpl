@@ -695,7 +695,7 @@ if (data.forwardIdentifiers) {
   event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
   event.user_data.client_ip_address = userIp;
   event.user_data.country = getValueFromHeader('gtm-helper-user-country');
-  event.user_data.ct = getValueFromHeader('gtm-helper-user-city');
+  event.user_data.ct = getValueFromHeader('gtm-helper-user-city').replace(' ','');
 }
 
 if (consentGranted && data.forwardUserData) {
