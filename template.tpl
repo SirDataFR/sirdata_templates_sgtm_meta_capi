@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.55,
+  "version": 1.56,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -182,9 +182,9 @@ ___TEMPLATE_PARAMETERS___
   {
     "type": "CHECKBOX",
     "name": "generateFbpCookie",
-    "checkboxText": "Generate \"_fbp\" and \"_fbc\" cookies when consent is given.",
+    "checkboxText": "Generate \"_fbp\" and \"_fbc\" and \"_gtmeec\" cookies when consent is given.",
     "simpleValueType": true,
-    "help": "For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
+    "help": "\"_gtmeec\" cookie is only written/read when \"forwardUserData\" is activated. For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
     "defaultValue": true,
     "alwaysInSummary": true
   },
@@ -193,7 +193,7 @@ ___TEMPLATE_PARAMETERS___
     "name": "forwardUserData",
     "checkboxText": "Boost Event Match Quality by automatically sending hashed user data to Meta — like email, name, and more.",
     "simpleValueType": true,
-    "help": "Automatically GA4 user_data and the \"Gtm-Helper-User-Hashed-Email\" header proposed by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e if you subscribed to it. For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
+    "help": "Automatically includes GA4 user_data and the \"Gtm-Helper-User-Hashed-Email\" header proposed by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e if you subscribed to it. For more information please refer to this \u003ca href\u003d\"https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/fbp-and-fbc/\" target\u003d\"_blank\"\u003edocumentation\u003c/a\u003e.",
     "defaultValue": true,
     "alwaysInSummary": true
   },
@@ -453,10 +453,12 @@ ___SANDBOXED_JS_FOR_SERVER___
 
 const JSON = require('JSON');
 const Math = require('Math');
-const createRegex = require('createRegex');
+const Object = require('Object');
 const computeEffectiveTldPlusOne = require('computeEffectiveTldPlusOne');
+const createRegex = require('createRegex');
 const decodeUriComponent = require('decodeUriComponent');
 const encodeUriComponent = require('encodeUriComponent');
+const fromBase64 = require('fromBase64');
 const generateRandom = require('generateRandom');
 const getAllEventData = require('getAllEventData');
 const getCookieValues = require('getCookieValues');
@@ -471,7 +473,7 @@ const sendPixelFromBrowser = require('sendPixelFromBrowser');
 const setCookie = require('setCookie');
 const sha256Sync = require('sha256Sync');
 const testRegex = require('testRegex');
-const Object = require('Object');
+const toBase64 = require('toBase64');
 
 const eventData = getAllEventData();
 const gcsParam = getRequestQueryParameter('gcs') || eventData['x-ga-gcs'];
@@ -525,35 +527,35 @@ const GA4_MAPPINGS = {
   'view_item': 'ViewContent'
 };
 
-function getEventName(eventName, data) {
-  return data.eventName === 'custom' ? data.customEventName : (GA4_MAPPINGS[eventName] || eventName);
+function getEventName(eventName, userData) {
+  return userData.eventName === 'custom' ? userData.customEventName : (GA4_MAPPINGS[eventName] || eventName);
 }
 
-function override(data, override) {
+function override(userData, override) {
   if (override) {
     override.forEach(o => {
-      data[o.name] = o.value;
+      userData[o.name] = o.value;
     });
   }
-  return data;
+  return userData;
 }
 
-function isSHA256Hashed(data) {
-    return data.match('^[A-Fa-f0-9]{64}$') !== null;
+function isSHA256Hashed(userData) {
+    return userData.match('^[A-Fa-f0-9]{64}$') !== null;
 }
 
-function hashData(data){
-  if(data && !isSHA256Hashed(data)){
-    return sha256Sync(data.toString().trim().toLowerCase(), {outputEncoding: 'hex'});
+function hashData(userData){
+  if(userData && !isSHA256Hashed(userData)){
+    return sha256Sync(userData.toString().trim().toLowerCase(), {outputEncoding: 'hex'});
   }
-  return data;
+  return userData;
 }
 
-function getValidSHA256Hash(data) {
-    if (!data || !isSHA256Hashed(data)) {
+function getValidSHA256Hash(userData) {
+    if (!userData || !isSHA256Hashed(userData)) {
         return;
     }
-    return data;
+    return userData;
 }
 
 function includes(arr, element) {
@@ -565,16 +567,16 @@ function includes(arr, element) {
     return false;
 }
 
-function cleanValues(data, hash) {
+function cleanValues(userData, hash) {
   //https://developers.facebook.com/docs/marketing-api/conversions-api/parameters/customer-information-parameters
   const keysToHash = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'ct', 'st', 'zp', 'country'];
   let cleanData = {};
-  for (let key in data) {
-    if (data[key] && data[key] != 'redacted_for_privacy') {
+  for (let key in userData) {
+    if (userData[key] && userData[key] != 'redacted_for_privacy') {
       if (hash && includes(keysToHash, key)) {
-        cleanData[key] = hashData(data[key]);
+        cleanData[key] = hashData(userData[key]);
       } else {
-        cleanData[key] = data[key];
+        cleanData[key] = userData[key];
       }
     }
   }
@@ -645,6 +647,92 @@ const referrer = eventData.page_referrer;
 const originDomain = getValueFromHeader('gtm-helper-site-domain') || computeEffectiveTldPlusOne(location);
 const subDomainIndex = data.generateFbpCookie && originDomain ? originDomain.split('.').length - 1 : 1;
 
+function deepEqual(a, b) {
+  if (a === b) return true;
+
+  if (
+    typeof a !== 'object' || a === null ||
+    typeof b !== 'object' || b === null
+  ) {
+    return false;
+  }
+
+  var keysA = Object.keys(a);
+  var keysB = Object.keys(b);
+  if (keysA.length !== keysB.length) return false;
+
+  for (var i = 0; i < keysA.length; i++) {
+    var key = keysA[i];
+
+    var found = false;
+    for (var j = 0; j < keysB.length; j++) {
+      if (keysB[j] === key) {
+        found = true;
+        break;
+      }
+    }
+    if (!found) return false;
+
+    if (!deepEqual(a[key], b[key])) return false;
+  }
+
+  return true;
+}
+
+function enhanceValues(userData, actualCountry, actualCity) {
+  if (!consentGranted || !data.generateFbpCookie || !data.forwardUserData) {
+    return userData;
+  }
+  const _gtmeecCookieValues = getCookieValues('_gtmeec');
+  let enhancedValues = {};
+  if (_gtmeecCookieValues && _gtmeecCookieValues.length > 0) {
+    const encodedValue = _gtmeecCookieValues[0];
+    const b64DecodedValue = fromBase64(encodedValue);
+    if (b64DecodedValue) {
+      let jsonDecodedValue = JSON.parse(b64DecodedValue);
+      if (jsonDecodedValue) {
+        enhancedValues = jsonDecodedValue;
+      }
+    }
+  }
+  const keysToEnhance = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'st', 'zp', 'ct', 'country', 'external_id', 'fb_login_id'];
+  let enhancedData = {};
+  let enhancedDataToRecord = {};
+  for (let key of keysToEnhance) {
+    if (
+      (userData[key] && userData[key] !== 'redacted_for_privacy') ||
+      enhancedValues[key]
+    ) {
+      if (key === 'country' || key === 'ct') {
+        if (
+          userData[key] &&
+          ((key === 'country' && actualCountry) || (key === 'ct' && actualCity))
+        ) {
+          enhancedData[key] = enhancedDataToRecord[key] = userData[key];
+        } else if (enhancedValues[key]) {
+          enhancedData[key] = enhancedDataToRecord[key] = enhancedValues[key];
+        } else if (userData[key]) {
+          enhancedData[key] = userData[key];
+        }
+      } else {
+        enhancedData[key] = enhancedDataToRecord[key] = userData[key] || enhancedValues[key];
+      }
+    }
+  }
+  if (Object.keys(enhancedDataToRecord).length > 0 && !deepEqual(enhancedValues, enhancedDataToRecord)) {
+    const cookieOptions = {
+      domain: getValueFromHeader('gtm-helper-server-host') || '.' + originDomain,
+      path: '/',
+      samesite: 'Lax',
+      secure: true,
+      'max-age': 31536000,
+      httpOnly: true
+    };
+    setCookie('_gtmeec', toBase64(JSON.stringify(enhancedDataToRecord)), cookieOptions);
+  }
+  return enhancedData;
+}
+
 let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
 let fbc;
 if (location) {
@@ -673,6 +761,8 @@ if (consentGranted) {
 
 let userIp = getValueFromHeader('gtm-helper-user-ip') || eventData.ip_override;
 let event = {user_data: {}, custom_data: {}, original_event_data: {}};
+let actualCountry = true;
+let actualCity = true;
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
 event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
 event.event_name = event.original_event_data.event_name = getEventName(eventData.event_name, data);
@@ -683,6 +773,29 @@ event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
 event.user_data.fbp = fbp;
 
+if (consentGranted && data.forwardUserData) {
+  eventData.user_data = eventData.user_data || {};
+  event.user_data.em = getValidSHA256Hash(eventData.user_data.sha256_email_address);
+  if (!event.user_data.em) {
+    event.user_data.em = getValidEmail(eventData.user_data.email_address) || getValidEmail(eventData.user_data.email) || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-email'));
+  }
+  event.user_data.ge = eventData.user_data.gender;
+  event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
+  if (eventData.user_data['address[0]'] && (!eventData.user_data.address || !eventData.user_data.address[0])) {
+    eventData.user_data.address = eventData.user_data.address || {};
+    eventData.user_data.address[0] = eventData.user_data['address[0]'];
+  }
+  if (eventData.user_data.address && eventData.user_data.address[0]) {
+    // override getRequestHeader data when needed
+    event.user_data.country = eventData.user_data.address[0].country ;
+    event.user_data.ct = (eventData.user_data.address[0].city || '').replace(' ','').replace('-','');
+    event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
+    event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
+    event.user_data.st = eventData.user_data.address[0].region;
+    event.user_data.zp = eventData.user_data.address[0].postal_code;
+  }
+}
+
 if (data.forwardIdentifiers) {
   // consent for stored User Ids or user-agent or ids
   if (consentGranted) {
@@ -692,26 +805,13 @@ if (data.forwardIdentifiers) {
   }
   event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
   event.user_data.client_ip_address = userIp;
-  event.user_data.country = getValueFromHeader('gtm-helper-user-country');
-  event.user_data.ct = (getValueFromHeader('gtm-helper-user-city') || '').replace(' ','').replace('-','');
-}
-
-if (consentGranted && data.forwardUserData) {
-  eventData.user_data = eventData.user_data || {};
-  event.user_data.em = getValidSHA256Hash(eventData.user_data.sha256_email_address);
-  if (!event.user_data.em) {
-    event.user_data.em = getValidEmail(eventData.user_data.email_address) || getValidEmail(eventData.user_data.email) || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-email'));
+  if (!event.user_data.country) {
+    event.user_data.country = getValueFromHeader('gtm-helper-user-country');
+    actualCountry = false;
   }
-  event.user_data.ge = eventData.user_data.gender;
-  event.user_data.ph = eventData.user_data.sha256_phone_number || eventData.user_data.phone_number;
-  if (eventData.user_data.address && eventData.user_data.address[0]) {
-    // override getRequestHeader data when needed
-    event.user_data.country = eventData.user_data.address[0].country || event.user_data.country || getValueFromHeader('gtm-helper-user-country');
-    event.user_data.ct = ((eventData.user_data.address[0].city || event.user_data.ct || getValueFromHeader('gtm-helper-user-city')) || '').replace(' ','').replace('-','');
-    event.user_data.fn = eventData.user_data.address[0].sha256_first_name || eventData.user_data.address[0].first_name;
-    event.user_data.ln = eventData.user_data.address[0].sha256_last_name || eventData.user_data.address[0].last_name;
-    event.user_data.st = eventData.user_data.address[0].region;
-    event.user_data.zp = eventData.user_data.address[0].postal_code;
+  if (!event.user_data.ct) {
+    event.user_data.ct = (getValueFromHeader('gtm-helper-user-city') || '').replace(' ','').replace('-','');
+    actualCity = false;
   }
 }
 
@@ -781,6 +881,7 @@ if (data.userData && data.userData.email && !data.userData.em) {
 event = cleanValues(override(event, data.serverEvent), false);
 event.custom_data = cleanValues(override(event.custom_data, data.customData), false);
 event.user_data = cleanValues(override(event.user_data, data.userData), true);
+event.user_data = enhanceValues(event.user_data, actualCountry, actualCity);
 
 const eventRequest = {data: [event], partner_agent: CAPI_PARTNER_AGENT};
 const testCode = eventData.test_event_code || data.testId;
@@ -827,7 +928,7 @@ if (
       url += '&sh=' + encodeUriComponent(screenHeight);
     }
   }
-  
+
   const userParams = ['em', 'ph', 'ge', 'db', 'ln', 'fn', 'st', 'zp', 'external_id', 'ct', 'country'];
   for (let i = 0; i < userParams.length; i++) {
     if (userParams[i] && event.user_data[userParams[i]]) {
@@ -930,7 +1031,7 @@ sendHttpRequest(CAPI_ENDPOINT, (statusCode, headers, body) => {
           samesite: 'Lax',
           secure: true,
           'max-age': 31536000,
-          HttpOnly: false
+          httpOnly: false
         };
         setCookie('_fbp', fbp, cookieOptions);
         if (fbc) {
@@ -1074,6 +1175,53 @@ ___SERVER_PERMISSIONS___
                     "string": "any"
                   }
                 ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "name"
+                  },
+                  {
+                    "type": 1,
+                    "string": "domain"
+                  },
+                  {
+                    "type": 1,
+                    "string": "path"
+                  },
+                  {
+                    "type": 1,
+                    "string": "secure"
+                  },
+                  {
+                    "type": 1,
+                    "string": "session"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "_gtmeec"
+                  },
+                  {
+                    "type": 1,
+                    "string": "*"
+                  },
+                  {
+                    "type": 1,
+                    "string": "*"
+                  },
+                  {
+                    "type": 1,
+                    "string": "any"
+                  },
+                  {
+                    "type": 1,
+                    "string": "any"
+                  }
+                ]
               }
             ]
           }
@@ -1144,6 +1292,10 @@ ___SERVER_PERMISSIONS___
               {
                 "type": 1,
                 "string": "_fbp"
+              },
+              {
+                "type": 1,
+                "string": "_gtmeec"
               }
             ]
           }
@@ -1299,6 +1451,21 @@ ___SERVER_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "gtm-helper-site-domain"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-server-host"
                   }
                 ]
               },
