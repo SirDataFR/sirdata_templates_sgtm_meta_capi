@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.59,
+  "version": 1.60,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -467,6 +467,7 @@ const getRequestQueryParameter = require('getRequestQueryParameter');
 const getTimestampMillis = require('getTimestampMillis');
 const getType = require('getType');
 const makeNumber = require('makeNumber');
+const makeString = require('makeString');
 const parseUrl = require('parseUrl');
 const sendHttpRequest = require('sendHttpRequest');
 const sendPixelFromBrowser = require('sendPixelFromBrowser');
@@ -763,6 +764,37 @@ function enhanceValues(userData, actualCountry, actualCity) {
   return deepMerge(userData, enhancedData);
 }
 
+function filterContentIds(content_id) {
+  const numericRegex = createRegex('^\\d+$');
+  if (testRegex(numericRegex,content_id)) {
+    return makeNumber(content_id);
+  } else {
+    return makeString(content_id);
+  }
+}
+
+function filterUndefined(content, replacement) {
+  if (typeof content === 'string' && content == 'undefined') {
+    return replacement;
+  }
+  return content;
+}
+
+function filterKeyValue(key, value) {
+  let replacement;
+  if (typeof value === 'string' && value == 'undefined') {
+    if (key == 'value' || key == 'price') {
+      replacement = 0;
+    } else if (key == 'quantity') {
+      replacement = 1;
+    }
+  }
+  if (replacement) {
+    return filterUndefined(value, replacement);
+  }
+  return value;
+}
+
 let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
 let fbc;
 if (location) {
@@ -865,10 +897,11 @@ if (eventData.items && eventData.items.length > 0) {
   let num_items = 0;
   for (let i = 0; i < eventData.items.length; i++) {
     if (eventData.items[i]) {
-      let objectQuantity = makeNumber(eventData.items[i].quantity||0);
+      let objectQuantity = makeNumber(filterKeyValue('quantity',eventData.items[i].quantity)||1);
+      let itemId = filterContentIds(filterUndefined(eventData.items[i].item_id,'null')||'null');
       num_items += objectQuantity;
-      contents.push({id: eventData.items[i].item_id||'',item_price: makeNumber(eventData.items[i].price||0),quantity: objectQuantity});
-      contentIds.push(eventData.items[i].item_id||'');
+      contents.push({id: itemId,item_price: makeNumber(filterKeyValue('price',eventData.items[i].price)||0),quantity: objectQuantity});
+      contentIds.push(itemId);
       if (eventData.items[i].item_value) {
         eventValue += makeNumber(eventData.items[i].price||0) * objectQuantity;
       }
@@ -881,7 +914,7 @@ if (eventData.items && eventData.items.length > 0) {
     for (let j = 0; j < keys.length; j++) {
       const key = keys[j];
       if (reservedCustomParams.indexOf(key) === -1) {
-        event.custom_data[key] = eventData.items[0][key];
+        event.custom_data[key] = filterKeyValue(key,eventData.items[0][key]);
       }
     }
   }
