@@ -679,6 +679,31 @@ function deepEqual(a, b) {
   return true;
 }
 
+function deepMerge(a, b) {
+  let result = {};
+
+  for (let key in a) {
+    if (a.hasOwnProperty(key)) {
+      result[key] = a[key];
+    }
+  }
+
+  for (let key in b) {
+    if (b.hasOwnProperty(key)) {
+      if (
+        typeof b[key] === 'object' && b[key] !== null &&
+        typeof result[key] === 'object' && result[key] !== null
+      ) {
+        result[key] = deepMerge(result[key], b[key]);
+      } else {
+        result[key] = b[key];
+      }
+    }
+  }
+
+  return result;
+}
+
 function enhanceValues(userData, actualCountry, actualCity) {
   if (!consentGranted || !data.generateFbpCookie || !data.forwardUserData) {
     return userData;
@@ -730,7 +755,7 @@ function enhanceValues(userData, actualCountry, actualCity) {
     };
     setCookie('_gtmeec', toBase64(JSON.stringify(enhancedDataToRecord)), cookieOptions);
   }
-  return enhancedData;
+  return deepMerge(userData, enhancedData);
 }
 
 let fbp = 'fb.' + subDomainIndex + '.' + fbpMilli + '.' + generateRandom(1000000000, 2147483647);
