@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.57,
+  "version": 1.59,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -524,11 +524,16 @@ const GA4_MAPPINGS = {
   'start_trial': 'StartTrial',
   'submit_application': 'SubmitApplication',
   'subscribe': 'Subscribe',
-  'view_item': 'ViewContent'
+  'view_item': 'ViewContent',
+  'view_item_list': 'Search'
 };
 
 function getEventName(eventName, userData) {
-  return userData.eventName === 'custom' ? userData.customEventName : (GA4_MAPPINGS[eventName] || eventName);
+  let name = userData.eventName === 'custom' ? userData.customEventName : (GA4_MAPPINGS[eventName] || eventName);
+  if (eventName == 'view_item_list' && !eventData.search_term) {
+    name = 'ViewContent';
+  }
+  return name;
 }
 
 function override(userData, override) {
