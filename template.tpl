@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.60,
+  "version": 1.61,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -231,6 +231,23 @@ ___TEMPLATE_PARAMETERS___
     "simpleValueType": true,
     "help": "To use the cookieless user ID, the client must subscribe to the \"site-only cookieless user ID\" option offered by \u003ca href\u003d\"https://server-side.docs.sirdata.net/sirdata-server-side/english-1/installation/data-processing/gtm-helper-layer\" target\u003d\"_blank\"\u003eSirdata\u003c/a\u003e, which doesn\u0027t allow tracking accross websites.",
     "alwaysInSummary": true
+  },
+  {
+    "type": "GROUP",
+    "name": "contents",
+    "displayName": "Contents",
+    "groupStyle": "NO_ZIPPY",
+    "subParams": [
+      {
+        "type": "CHECKBOX",
+        "name": "contentIdsAsInteger",
+        "checkboxText": "Use of numeric Content IDs instead of string values",
+        "simpleValueType": true,
+        "help": "Check ONLY If you use Integers as Product Ids. Do not check in case of doubt.",
+        "defaultValue": false
+      }
+    ],
+    "help": ""
   },
   {
     "displayName": "Server Event Data Override",
@@ -765,6 +782,9 @@ function enhanceValues(userData, actualCountry, actualCity) {
 }
 
 function filterContentIds(content_id) {
+  if (!data.contentIdsAsInteger) {
+    return makeString(content_id);
+  }
   const numericRegex = createRegex('^\\d+$');
   if (testRegex(numericRegex,content_id)) {
     return makeNumber(content_id);
