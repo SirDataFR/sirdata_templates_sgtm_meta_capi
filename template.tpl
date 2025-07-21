@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.56,
+  "version": 1.57,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -789,9 +789,10 @@ let event = {user_data: {}, custom_data: {}, original_event_data: {}};
 let actualCountry = true;
 let actualCity = true;
 event.action_source = eventData.action_source ? eventData.action_source : 'website';
-event.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
+event.event_id = event.original_event_data.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
 event.event_name = event.original_event_data.event_name = getEventName(eventData.event_name, data);
 event.event_time = event.original_event_data.event_time = eventData.event_time || Math.floor(tsMilli / 1000);
+event.original_event_data.event_id =
 event.event_source_url = location;
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
@@ -842,9 +843,8 @@ if (data.forwardIdentifiers) {
 
 let eventCurrency = eventData.currency || '';
 let eventValue = eventData.value || 0;
-if (consentGranted) {
-  event.custom_data.order_id = eventData.transaction_id;
-}
+
+event.custom_data.order_id = event.original_event_data.order_id = eventData.transaction_id;
 event.custom_data.search_string = eventData.search_term;
 if (event.event_name === 'InitiateCheckout') {
   event.custom_data.num_items = eventData.items ? eventData.items.length : 0;
