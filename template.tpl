@@ -849,8 +849,7 @@ event.action_source = eventData.action_source ? eventData.action_source : 'websi
 event.event_id = event.original_event_data.event_id = eventData.event_id || eventData.transaction_id || 'sirdata-sgtm-' + tsMilli + '-' + generateRandom(100000, 999999);
 event.event_name = event.original_event_data.event_name = getEventName(eventData.event_name, data);
 event.event_time = event.original_event_data.event_time = eventData.event_time || Math.floor(tsMilli / 1000);
-event.original_event_data.event_id =
-event.event_source_url = location;
+event.original_event_data.event_source_url = event.event_source_url = location;
 event.referrer_url = referrer;
 event.user_data.fb_login_id = eventData.fb_login_id;
 event.user_data.fbc = fbc;
