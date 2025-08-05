@@ -885,7 +885,7 @@ if (data.forwardIdentifiers) {
     event.user_data.lead_id = eventData.lead_id;
     event.user_data.subscription_id = eventData.subscription_id;
   }
-  event.user_data.external_id = eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
+  event.user_data.external_id = eventData.external_id || eventData.user_id || getValidUUID(getValueFromHeader('gtm-helper-cookieless-id-domain-specific'));
   event.user_data.client_ip_address = userIp;
   if (!event.user_data.country) {
     event.user_data.country = getValueFromHeader('gtm-helper-user-country');
