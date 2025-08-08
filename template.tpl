@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.61,
+  "version": 1.62,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -547,7 +547,7 @@ const GA4_MAPPINGS = {
 };
 
 function getEventName(eventName, userData) {
-  let name = userData.eventName === 'custom' ? userData.customEventName : (GA4_MAPPINGS[eventName] || eventName);
+  let name = userData.eventName === 'custom' ? userData.customEventName : (userData.eventName === 'inherit' ? (GA4_MAPPINGS[eventName] || eventName) : userData.eventName);
   if (eventName == 'view_item_list' && !eventData.search_term) {
     name = 'ViewContent';
   }
