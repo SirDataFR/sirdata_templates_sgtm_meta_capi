@@ -15,5 +15,5 @@
 homepage: "https://sgtm.sirdata.io"
 documentation: "https://server-side.docs.sirdata.net/sirdata-server-side/v/english-1/installation/facebook-conversions-api-setup"
 versions:
-  - sha: 592891b61668a6c4801a26c086658c5667c3f6cf
-    changeNotes: external_id
+  - sha: a795fe58a76fa875ee76c03e99d8c9cfef2c6042
+    changeNotes: fix inherit event name
