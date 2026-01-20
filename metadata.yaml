@@ -15,5 +15,5 @@
 homepage: "https://sgtm.sirdata.io"
 documentation: "https://server-side.docs.sirdata.net/sirdata-server-side/v/english-1/installation/facebook-conversions-api-setup"
 versions:
-  - sha: a795fe58a76fa875ee76c03e99d8c9cfef2c6042
-    changeNotes: fix inherit event name
+  - sha: 37da4bb21c4c405d2d57e8372b9b1e59d1cc6255
+    changeNotes: get email when coexisting with hashed email
