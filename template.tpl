@@ -11,7 +11,7 @@ ___INFO___
 {
   "type": "TAG",
   "id": "cvt_WKPWW",
-  "version": 1.64,
+  "version": 1.65,
   "securityGroups": [],
   "displayName": "GDPR Ready Meta/Facebook CAPI by Sirdata",
   "categories": [
@@ -857,9 +857,9 @@ event.user_data.fbp = fbp;
 
 if (consentGranted && data.forwardUserData) {
   eventData.user_data = eventData.user_data || {};
-  event.user_data.em = getValidEmail(eventData.user_data.email) || getValidEmail(eventData.user_data.email_address) || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-email') || getValidSHA256Hash(eventData.user_data.sha256_email_address));
+  event.user_data.em = getValidEmail(eventData.user_data.email) || getValidEmail(eventData.user_data.email_address) || getValidSHA256Hash(eventData.user_data.sha256_email_address) || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-email'));
   event.user_data.ge = eventData.user_data.gender;
-  event.user_data.ph = eventData.user_data.phone_number || eventData.user_data.sha256_phone_number;
+  event.user_data.ph = eventData.user_data.phone_number || eventData.user_data.sha256_phone_number || getValidSHA256Hash(getValueFromHeader('gtm-helper-user-hashed-phone'));
   if (eventData.user_data['address[0]'] && (!eventData.user_data.address || !eventData.user_data.address[0])) {
     eventData.user_data.address = eventData.user_data.address || {};
     eventData.user_data.address[0] = eventData.user_data['address[0]'];
@@ -1425,6 +1425,21 @@ ___SERVER_PERMISSIONS___
                   {
                     "type": 1,
                     "string": "gtm-helper-user-hashed-email"
+                  }
+                ]
+              },
+              {
+                "type": 3,
+                "mapKey": [
+                  {
+                    "type": 1,
+                    "string": "headerName"
+                  }
+                ],
+                "mapValue": [
+                  {
+                    "type": 1,
+                    "string": "gtm-helper-user-hashed-phone"
                   }
                 ]
               },
